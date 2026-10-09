@@ -24,6 +24,7 @@ client. Design and the evidence behind it: `docs/architecture.md`. Packaging: `d
 | `packaging/` | `install.sh` (the curl installer, served by unpkg from the main package) and the npm launcher `npm/bin/figma-font-sync.js` |
 | `testing/guard.ts` | Test preload that blocks the real keychain, launchd, registry and Google (see invariant 15) |
 | `.github/workflows` | `ci.yml` on PRs; `release.yml` publishes to npm on a `v*` tag |
+| `CHANGELOG.md` | Release notes: add user-facing changes under `Unreleased` in the same PR |
 | `docs/distribution.md` | npm packages, binaries, on-disk layout, CLI, install.sh: the decisions and why |
 | `docs/releasing.md` | Maintainer steps: versioning, npm bootstrap, release, verify, roll back |
 

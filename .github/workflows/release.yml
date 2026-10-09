@@ -68,6 +68,33 @@ jobs:
           echo "::error::Publishing needs the tag v$version (apps/helper/package.json), got $GITHUB_REF"
           exit 1
 
+      # The GitHub release's notes, read before anything is published so a version never reaches npm
+      # without them: the "## [X.Y.Z]" section of CHANGELOG.md, minus link definitions and edge blank lines.
+      - name: Release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { next }
+            found { lines[++n] = $0 }
+            END {
+              first = 1; while (first <= n && lines[first] == "") first++
+              last = n; while (last >= first && lines[last] == "") last--
+              for (i = first; i <= last; i++) print lines[i]
+            }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if [ ! -s "$RUNNER_TEMP/release-notes.md" ]; then
+            if [ "$DRY_RUN" = true ]; then
+              echo "::warning::CHANGELOG.md has no section for $VERSION"
+            else
+              echo "::error::CHANGELOG.md needs a '## [$VERSION] - YYYY-MM-DD' section before this release"
+              exit 1
+            fi
+          fi
+          cat "$RUNNER_TEMP/release-notes.md"
+
       - run: bun install --frozen-lockfile
 
       # Also regenerates openapi.json and the plugin client, which the plugin build needs.
@@ -154,8 +181,10 @@ jobs:
           binaries=(apps/helper/dist/figma-font-sync-darwin-arm64 apps/helper/dist/figma-font-sync-darwin-x64
             apps/helper/dist/figma-font-sync-windows-x64.exe apps/helper/dist/figma-font-sync-windows-x64-background.exe
             apps/helper/dist/figma-font-sync-linux-x64)
+          notes="$RUNNER_TEMP/release-notes.md"
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             gh release upload "v$VERSION" "${binaries[@]}" --clobber
+            gh release edit "v$VERSION" --notes-file "$notes"
           else
-            gh release create "v$VERSION" "${binaries[@]}" --title "v$VERSION" --generate-notes --verify-tag
+            gh release create "v$VERSION" "${binaries[@]}" --title "v$VERSION" --notes-file "$notes" --verify-tag
           fi
