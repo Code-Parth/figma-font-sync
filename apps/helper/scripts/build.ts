@@ -92,7 +92,7 @@ for (const target of targets) {
   for (const hideConsole of variants) {
     const outfile = outfileFor(target, hideConsole ? "-background" : "");
     const result = await Bun.build({
-      entrypoints: [join(helperDir, "src/main.ts")],
+      entrypoints: [join(helperDir, "src/bin.ts")],
       // A .env or bunfig.toml in whatever directory the binary starts in must not change its behaviour.
       compile: {
         target,

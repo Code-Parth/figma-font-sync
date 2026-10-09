@@ -707,7 +707,10 @@ function logToFileWhenBackground(): void {
   console.warn = write;
 }
 
-if (import.meta.main) {
+/** Runs the CLI with this process's arguments and exits with its code. */
+export async function runCli(): Promise<never> {
   logToFileWhenBackground();
   process.exit(await main(process.argv.slice(2)));
 }
+
+if (import.meta.main) await runCli();
