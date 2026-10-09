@@ -1,0 +1,1853 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Font Sync helper",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:47321"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Candidates": {
+        "type": "object",
+        "properties": {
+          "folders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Folder"
+            }
+          },
+          "incomplete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "folders",
+          "incomplete"
+        ]
+      },
+      "Folder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webViewLink": {
+            "type": "string"
+          },
+          "modifiedTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "owner",
+          "webViewLink",
+          "modifiedTime"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "bad-request",
+                  "unauthorized",
+                  "forbidden",
+                  "not-found",
+                  "conflict",
+                  "rate-limited",
+                  "not-configured",
+                  "not-signed-in",
+                  "no-library",
+                  "google-error",
+                  "install-failed",
+                  "internal"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "darwin",
+              "win32",
+              "linux"
+            ]
+          },
+          "auth": {
+            "$ref": "#/components/schemas/AuthState"
+          },
+          "account": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "email",
+              "name"
+            ]
+          },
+          "library": {
+            "$ref": "#/components/schemas/Library"
+          },
+          "libraryError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "platform",
+          "auth",
+          "account",
+          "library",
+          "libraryError"
+        ]
+      },
+      "AuthState": {
+        "type": "string",
+        "enum": [
+          "not-configured",
+          "signed-out",
+          "signing-in",
+          "signed-in",
+          "expired"
+        ]
+      },
+      "Library": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "webViewLink": {
+            "type": "string"
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Owner email or display name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "canUpload": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "webViewLink",
+          "owner",
+          "role",
+          "canUpload"
+        ]
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "editor",
+          "viewer"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "font-sync"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "name",
+          "version"
+        ]
+      },
+      "InstallResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileResult"
+            }
+          },
+          "reloadRequired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "results",
+          "reloadRequired"
+        ]
+      },
+      "FileResult": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "fileId",
+          "ok",
+          "error"
+        ]
+      },
+      "FileIdsRequest": {
+        "type": "object",
+        "properties": {
+          "fileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "fileIds"
+        ]
+      },
+      "LibraryFiles": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryFile"
+            }
+          },
+          "syncedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "files",
+          "syncedAt"
+        ]
+      },
+      "LibraryFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          },
+          "md5": {
+            "type": "string"
+          },
+          "modifiedTime": {
+            "type": "string"
+          },
+          "uploadedBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "faces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Face"
+            }
+          },
+          "parseError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "install": {
+            "$ref": "#/components/schemas/InstallState"
+          },
+          "canRemove": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path",
+          "size",
+          "md5",
+          "modifiedTime",
+          "uploadedBy",
+          "faces",
+          "parseError",
+          "install",
+          "canRemove"
+        ]
+      },
+      "Face": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "postscript": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fullName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "legacyFamily": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "legacyStyle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "weight": {
+            "type": "number"
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "variable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "family",
+          "style",
+          "postscript",
+          "fullName",
+          "legacyFamily",
+          "legacyStyle",
+          "weight",
+          "italic",
+          "variable"
+        ]
+      },
+      "InstallState": {
+        "type": "string",
+        "enum": [
+          "not-installed",
+          "installed",
+          "outdated",
+          "not-in-library"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "Members": {
+        "type": "object",
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            }
+          }
+        },
+        "required": [
+          "members"
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "organizer",
+              "fileOrganizer",
+              "writer",
+              "commenter",
+              "reader"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "group",
+              "domain",
+              "anyone"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "role",
+          "type"
+        ]
+      },
+      "PairCompleteResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "PairCompleteRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "code",
+          "clientName"
+        ]
+      },
+      "PairStartResponse": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "expiresAt"
+        ]
+      },
+      "PairStartRequest": {
+        "type": "object",
+        "properties": {
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "clientName"
+        ]
+      },
+      "UploadResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadResult"
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "UploadResult": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "fileId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duplicateOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "faces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Face"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "ok",
+          "fileId",
+          "duplicateOf",
+          "error",
+          "faces"
+        ]
+      },
+      "PublishLocalRequest": {
+        "type": "object",
+        "properties": {
+          "fonts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FontKey"
+            },
+            "minItems": 1,
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "fonts"
+        ]
+      },
+      "FontKey": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "style": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "family",
+          "style"
+        ]
+      },
+      "RemoveResponse": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "string",
+            "enum": [
+              "trashed",
+              "unlinked"
+            ]
+          }
+        },
+        "required": [
+          "removed"
+        ]
+      },
+      "ResolveResponse": {
+        "type": "object",
+        "properties": {
+          "fonts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedFont"
+            }
+          }
+        },
+        "required": [
+          "fonts"
+        ]
+      },
+      "ResolvedFont": {
+        "type": "object",
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "library": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "fileId": {
+                "type": "string"
+              },
+              "face": {
+                "$ref": "#/components/schemas/Face"
+              },
+              "tier": {
+                "type": "string",
+                "enum": [
+                  "exact",
+                  "normalized",
+                  "alias"
+                ]
+              }
+            },
+            "required": [
+              "fileId",
+              "face",
+              "tier"
+            ]
+          },
+          "local": {
+            "type": "object",
+            "properties": {
+              "onDisk": {
+                "type": "boolean"
+              },
+              "installedBySync": {
+                "type": "boolean"
+              },
+              "uploadable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "onDisk",
+              "installedBySync",
+              "uploadable"
+            ]
+          }
+        },
+        "required": [
+          "family",
+          "style",
+          "library",
+          "local"
+        ]
+      },
+      "ResolveRequest": {
+        "type": "object",
+        "properties": {
+          "fonts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FontKey"
+            },
+            "maxItems": 5000
+          }
+        },
+        "required": [
+          "fonts"
+        ]
+      },
+      "SelectLibraryRequest": {
+        "type": "object",
+        "properties": {
+          "folderId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "folderId"
+        ]
+      },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "UploadForm": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        },
+        "required": [
+          "files"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/library/candidates": {
+      "get": {
+        "operationId": "listLibraryCandidates",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Folders named font-sync-figma-plugin this user can see",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidates"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/create": {
+      "post": {
+        "operationId": "createLibrary",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Folder created in this user's My Drive and selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "description": "Helper is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/install": {
+      "post": {
+        "operationId": "installFonts",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileIdsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-file results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/files": {
+      "get": {
+        "operationId": "listLibraryFiles",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Re-list the Drive folder instead of using the last sync"
+            },
+            "required": false,
+            "description": "Re-list the Drive folder instead of using the last sync",
+            "name": "refresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Font files in the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryFiles"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Browser opened for Google sign-in; poll /status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/members": {
+      "get": {
+        "operationId": "listLibraryMembers",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "People the library folder is shared with",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Members"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pair/complete": {
+      "post": {
+        "operationId": "completePairing",
+        "tags": [
+          "pairing"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairCompleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paired; keep the token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairCompleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong or expired code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pair/start": {
+      "post": {
+        "operationId": "startPairing",
+        "tags": [
+          "pairing"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code created and shown at /pair",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many pairing attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/publish-local": {
+      "post": {
+        "operationId": "publishLocalFonts",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishLocalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-font results; the helper finds the files on this machine",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This user cannot add files to the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/files/{fileId}": {
+      "delete": {
+        "operationId": "removeLibraryFile",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "fileId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed from the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This user cannot remove the file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not in the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fonts/resolve": {
+      "post": {
+        "operationId": "resolveFonts",
+        "tags": [
+          "fonts"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Library match and local state per font",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/select": {
+      "post": {
+        "operationId": "selectLibrary",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectLibraryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a font-sync-figma-plugin folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Folder not found or not shared with this user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "operationId": "getStatus",
+        "tags": [
+          "meta"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Helper status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/uninstall": {
+      "post": {
+        "operationId": "uninstallFonts",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileIdsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-file results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pair": {
+      "delete": {
+        "operationId": "unpair",
+        "tags": [
+          "pairing"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/library/upload": {
+      "post": {
+        "operationId": "uploadFonts",
+        "tags": [
+          "library"
+        ],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-file results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid pairing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "This user cannot add files to the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Helper is not configured, not signed in, or has no library selected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Google API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

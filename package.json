@@ -1,0 +1,16 @@
+{
+  "name": "font-sync",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "gen": "bun run --cwd apps/helper openapi && bun run --cwd apps/plugin gen",
+    "typecheck": "bun run gen && bun run --cwd apps/helper typecheck && bun run --cwd apps/plugin typecheck",
+    "test": "bun test",
+    "build": "bun run gen && bun run --cwd apps/plugin build && bun run --cwd apps/helper build"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "6.0.3"
+  }
+}
