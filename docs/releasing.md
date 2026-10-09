@@ -33,19 +33,31 @@ publishes with a short-lived token, and every later release uses trusted publish
    gh secret set NPM_TOKEN --repo Code-Parth/figma-font-sync
    ```
 
-5. Release as in **Normal release** below. The workflow publishes all five packages with the token and
+5. Release as in **Normal release** below. The workflow uploads all five packages with the token and
    creates the GitHub release.
-6. Remove the token as soon as the release is out:
+6. Approve the uploads. npm stages a publish made with a token that bypasses 2FA instead of making it
+   live: until a maintainer approves it with 2FA, a new package shows only a public placeholder version,
+   `0.0.0-stage`. Approve the four platform packages first and `figma-font-sync` last, either on
+   npmjs.com (**Staged Packages** tab > **Approve**) or with npm 11.15.0 or newer:
+
+   ```bash
+   npm stage list
+   npm stage approve <stage-id>
+   ```
+
+   The registry can keep answering "not found" for a few minutes after approval; query with
+   `npm view <pkg> --prefer-online` before assuming something is missing.
+7. Remove the token as soon as the release is out:
 
    ```bash
    gh secret delete NPM_TOKEN --repo Code-Parth/figma-font-sync
    ```
 
    and delete it on npmjs.com (**Access Tokens**).
-7. Right before the second release, add the GitHub Actions trusted publisher to each package. A new
+8. Right before the second release, add the GitHub Actions trusted publisher to each package. A new
    trusted publisher has to publish within 2 days or npm drops it, so do this when the next tag is ready,
-   not straight after the first release. It needs npm 11.15.0 or newer (`npm i -g npm@latest`) and
-   `npm login`:
+   not straight after the first release. It needs npm 11.15.0 or newer and `npm login`. npm 12 needs
+   Node 24.15 or newer; on an older Node, `npm i -g npm@11` gets the latest npm 11, which is enough:
 
    ```bash
    for pkg in @figma-font-sync/darwin-arm64 @figma-font-sync/darwin-x64 \
@@ -56,8 +68,17 @@ publishes with a short-lived token, and every later release uses trusted publish
    ```
 
    The fields are case-sensitive and npm only checks them when the workflow publishes.
-8. Optional, once trusted publishing has published a release: in each package's settings on npmjs.com,
-   set publishing access to require two-factor authentication and disallow tokens.
+9. Optional: deprecate the placeholders so nobody installs them by accident (asks for 2FA):
+
+   ```bash
+   for pkg in @figma-font-sync/darwin-arm64 @figma-font-sync/darwin-x64 \
+              @figma-font-sync/windows-x64 @figma-font-sync/linux-x64 figma-font-sync; do
+     npm deprecate "$pkg@0.0.0-stage" "Staged-publishing placeholder. Install the latest version."
+   done
+   ```
+
+10. Optional, once trusted publishing has published a release: in each package's settings on
+    npmjs.com, set publishing access to require two-factor authentication and disallow tokens.
 
 ## Normal release
 
@@ -84,14 +105,11 @@ To test the workflow without publishing, run it by hand with `dry_run` (**Action
 workflow**, or `gh workflow run release.yml -f dry_run=true`). It builds and packs, and publishes
 nothing.
 
-## No provenance
+## Provenance
 
-npm generates no provenance for packages published from a private GitHub repository, even with
-trusted publishing, so neither the workflow nor the package files ask for it. If the repository becomes
-public, npm's docs say trusted publishing adds provenance on its own.
-
-Each package's `repository.url` names `Code-Parth/figma-font-sync`, as trusted publishing requires, so the
-repository's name is public even though its contents are not.
+The repository is public, so releases published through trusted publishing get npm provenance on their
+own: no flag in the workflow or the package files. Token-published versions have none; 0.1.0 is one.
+Each package's `repository.url` names `Code-Parth/figma-font-sync`, which trusted publishing requires.
 
 ## Never ship a Google client
 
