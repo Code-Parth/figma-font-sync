@@ -82,8 +82,9 @@ publishes with a short-lived token, and every later release uses trusted publish
 
 ## Normal release
 
-1. On a branch, bump `version` in `apps/helper/package.json`, run `bun run gen`, and commit
-   `package.json` and `openapi.json`. Merge it once CI passes.
+1. On a branch, bump `version` in `apps/helper/package.json`, run `bun run gen`, and in `CHANGELOG.md`
+   move the `Unreleased` entries under a new `## [X.Y.Z] - YYYY-MM-DD` heading and add its compare link
+   at the bottom. Commit `package.json`, `openapi.json` and `CHANGELOG.md`, and merge once CI passes.
 2. Tag the merge commit on `main` and push the tag:
 
    ```bash
