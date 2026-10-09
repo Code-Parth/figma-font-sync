@@ -67,7 +67,7 @@ of the five packages goes up by hand, from a Mac (the build re-signs the darwin 
    ```bash
    for pkg in @figma-font-sync/darwin-arm64 @figma-font-sync/darwin-x64 \
               @figma-font-sync/windows-x64 @figma-font-sync/linux-x64 figma-font-sync; do
-     npm trust github "$pkg" --file release.yml --repo Code-Parth/font-sync --allow-publish -y
+     npm trust github "$pkg" --file release.yml --repo Code-Parth/figma-font-sync --allow-publish -y
      sleep 2
    done
    ```
@@ -109,7 +109,7 @@ npm generates no provenance for packages published from a private GitHub reposit
 trusted publishing, so neither the workflow nor the package files ask for it. If the repository becomes
 public, npm's docs say trusted publishing adds provenance on its own.
 
-Each package's `repository.url` names `Code-Parth/font-sync`, as trusted publishing requires, so the
+Each package's `repository.url` names `Code-Parth/figma-font-sync`, as trusted publishing requires, so the
 repository's name is public even though its contents are not.
 
 ## Never ship a Google client

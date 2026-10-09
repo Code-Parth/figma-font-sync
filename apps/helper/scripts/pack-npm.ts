@@ -11,7 +11,7 @@ import pkg from "../package.json";
 
 const MAIN_NAME = "figma-font-sync";
 const SCOPE = "@figma-font-sync";
-const REPOSITORY = { type: "git", url: "git+https://github.com/Code-Parth/font-sync.git" };
+const REPOSITORY = { type: "git", url: "git+https://github.com/Code-Parth/figma-font-sync.git" };
 const LICENSE = "SEE LICENSE IN LICENSE";
 const AUTHOR = "Parth Parmar";
 const VERSION_PLACEHOLDER = "__VERSION__";

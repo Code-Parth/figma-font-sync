@@ -7,7 +7,7 @@ import pkg from "../../package.json";
 const SCRIPT = path.resolve(import.meta.dir, "../../scripts/pack-npm.ts");
 const REPO = path.resolve(import.meta.dir, "../../../..");
 const VERSION = pkg.version;
-const REPOSITORY = { type: "git", url: "git+https://github.com/Code-Parth/font-sync.git" };
+const REPOSITORY = { type: "git", url: "git+https://github.com/Code-Parth/figma-font-sync.git" };
 
 const BINARIES = {
   "darwin-arm64": ["figma-font-sync-darwin-arm64"],
