@@ -173,7 +173,8 @@ function, `main "$@"` on the last line so a truncated download runs nothing.
 4. Publish with npm trusted publishing (`id-token: write`, Node 24, npm 11.5.1 or newer): every platform
    package first, skipping a version already on the registry, then the main package only if all of them
    succeeded. Trusted publishing adds npm provenance, since the GitHub repo is public.
-5. Attach the binaries to a GitHub release.
+5. Attach the binaries to a GitHub release whose notes are that version's `CHANGELOG.md` section. The
+   workflow reads the section before publishing and stops if it is missing.
 
 A manual run (`workflow_dispatch` with `dry_run`) builds and packs without publishing.
 

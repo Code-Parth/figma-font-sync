@@ -97,7 +97,9 @@ publishes with a short-lived token, and every later release uses trusted publish
    tag against the version, typechecks, tests, builds the plugin and every binary with
    `FONT_SYNC_PUBLIC_BUILD=1`, verifies both darwin signatures, smoke-tests `--version`, and packs.
 4. It publishes the four platform packages first, skipping any version already on the registry, and the
-   main package only if all four succeeded. Then it attaches the binaries to a GitHub release.
+   main package only if all four succeeded. Then it attaches the binaries to a GitHub release and uses
+   the version's `CHANGELOG.md` section as its notes. That section is read before anything is published,
+   so a release without one stops early instead of reaching npm without notes.
 
 If a run fails halfway, fix the cause and re-run it: platform packages that made it are skipped. If the
 fix needs a code change, release the next patch instead, since a published version can't be replaced.

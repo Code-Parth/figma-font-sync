@@ -18,6 +18,8 @@ CLI, the Figma plugin and every npm package.
   and `npm i -g npm@11` for Node versions older than 24.15.
 - Releases published through trusted publishing now carry npm provenance, since the GitHub repository is
   public.
+- GitHub release notes now come from the version's section in this file. The release workflow stops
+  before publishing anything when the section is missing.
 
 ## [0.1.0] - 2026-10-09
 
