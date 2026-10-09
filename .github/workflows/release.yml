@@ -106,6 +106,9 @@ jobs:
         working-directory: apps/helper/dist/npm
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          # The first release only: npm adds trusted publishers to existing packages, so it goes out with a
+          # short-lived token. npm tries trusted publishing first and falls back to this; unset afterwards.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           failed=0
           for name in $(node -p 'Object.keys(require("./figma-font-sync/package.json").optionalDependencies).join(" ")'); do
@@ -129,6 +132,9 @@ jobs:
         working-directory: apps/helper/dist/npm/figma-font-sync
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          # The first release only: npm adds trusted publishers to existing packages, so it goes out with a
+          # short-lived token. npm tries trusted publishing first and falls back to this; unset afterwards.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if npm view "figma-font-sync@$VERSION" version >/dev/null 2>&1; then
             echo "figma-font-sync@$VERSION is already published"

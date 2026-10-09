@@ -16,53 +16,36 @@ How to publish `figma-font-sync` to npm. What the packages contain and why: `doc
 
 ## One-time bootstrap
 
-npm only lets you add a trusted publisher to a package that already exists, so the first version of each
-of the five packages goes up by hand, from a Mac (the build re-signs the darwin binaries with `codesign`).
+npm only lets you add a trusted publisher to a package that already exists. So the first release
+publishes with a short-lived token, and every later release uses trusted publishing with no token.
 
-1. Use an npm account with two-factor authentication turned on for sign-in and writes, and `npm login`.
+1. Use an npm account with two-factor authentication turned on.
 2. Create the npm organisation `figma-font-sync` on npmjs.com (**Add Organization**, free plan, which
    allows public packages). Only org members can publish `@figma-font-sync/*`, so nobody can squat a
    platform package name the main package lists.
-3. Build without a Google client:
+3. Create a granular access token on npmjs.com (avatar > **Access Tokens** > **Generate New Token** >
+   **Granular Access Token**): expiration 7 days, **Bypass two-factor authentication** on (the workflow
+   cannot answer a 2FA prompt), **Packages and scopes**: Read and write, **All packages** (the unscoped
+   `figma-font-sync` does not exist yet, so it cannot be selected by name).
+4. Store it as a repository secret. `gh` asks for the value, so it never lands in your shell history:
 
    ```bash
-   bun install --frozen-lockfile
-   bun run gen
-   bun run --cwd apps/plugin build
-   FONT_SYNC_PUBLIC_BUILD=1 bun --no-env-file apps/helper/scripts/build.ts
-   bun apps/helper/scripts/pack-npm.ts
+   gh secret set NPM_TOKEN --repo Code-Parth/figma-font-sync
    ```
 
-   Bun loads `apps/helper/.env` into any script run from `apps/helper`, which would put your local
-   Google client into the build. Running from the repo root with `--no-env-file` keeps it out, and
-   `FONT_SYNC_PUBLIC_BUILD=1` fails the build if `FONT_SYNC_GOOGLE_CLIENT_ID` or `_SECRET` gets through
-   anyway, for example from your shell.
-4. Check what you are about to publish:
+5. Release as in **Normal release** below. The workflow publishes all five packages with the token and
+   creates the GitHub release.
+6. Remove the token as soon as the release is out:
 
    ```bash
-   apps/helper/dist/figma-font-sync-darwin-arm64 version
-   codesign --verify --strict apps/helper/dist/figma-font-sync-darwin-arm64
-   codesign --verify --strict apps/helper/dist/figma-font-sync-darwin-x64
-   # Must print 0 for every binary: no client ID, no client secret.
-   grep -acE 'GOCSPX-[A-Za-z0-9_-]{20,}|[0-9]{6,}-[a-z0-9]{32}\.apps\.googleusercontent\.com' \
-     apps/helper/dist/figma-font-sync-*
+   gh secret delete NPM_TOKEN --repo Code-Parth/figma-font-sync
    ```
 
-   `pack-npm.ts` already refuses a binary that matches this pattern; the grep is the second check.
-
-5. Publish the four platform packages, then the main package. `pack-npm.ts` wrote one directory per
-   package under `apps/helper/dist/npm/`:
-
-   ```bash
-   for dir in darwin-arm64 darwin-x64 windows-x64 linux-x64 figma-font-sync; do
-     (cd "apps/helper/dist/npm/$dir" && npm publish --access public) || break
-   done
-   ```
-
-   npm asks for a 2FA code each time. The main package goes last because its `optionalDependencies`
-   name the other four at this exact version.
-6. Add the GitHub Actions trusted publisher to each package. This needs npm 11.15.0 or newer
-   (`npm --version`; `npm i -g npm@latest` if older):
+   and delete it on npmjs.com (**Access Tokens**).
+7. Right before the second release, add the GitHub Actions trusted publisher to each package. A new
+   trusted publisher has to publish within 2 days or npm drops it, so do this when the next tag is ready,
+   not straight after the first release. It needs npm 11.15.0 or newer (`npm i -g npm@latest`) and
+   `npm login`:
 
    ```bash
    for pkg in @figma-font-sync/darwin-arm64 @figma-font-sync/darwin-x64 \
@@ -73,10 +56,8 @@ of the five packages goes up by hand, from a Mac (the build re-signs the darwin 
    ```
 
    The fields are case-sensitive and npm only checks them when the workflow publishes.
-7. A new trusted publisher has to publish within 2 days or npm drops it. Cut the next release (a patch
-   is fine) through the workflow straight away. If it lapses, repeat step 6.
-8. Optional, once the workflow has published: in each package's settings on npmjs.com, set publishing
-   access to require two-factor authentication and disallow tokens. Trusted publishing keeps working.
+8. Optional, once trusted publishing has published a release: in each package's settings on npmjs.com,
+   set publishing access to require two-factor authentication and disallow tokens.
 
 ## Normal release
 

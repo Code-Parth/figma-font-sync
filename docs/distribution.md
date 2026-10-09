@@ -177,6 +177,8 @@ function, `main "$@"` on the last line so a truncated download runs nothing.
 
 A manual run (`workflow_dispatch` with `dry_run`) builds and packs without publishing.
 
-One-time bootstrap (by hand, needs npm 2FA): create the `figma-font-sync` npm org, publish each package
-once, then `npm trust github <pkg> --file release.yml --repo Code-Parth/figma-font-sync --allow-publish -y`
-for each. See `docs/releasing.md`.
+One-time bootstrap: npm adds trusted publishers only to packages that exist, so the first release
+publishes with a short-lived `NPM_TOKEN` repository secret (npm tries trusted publishing first and falls
+back to it). Then the secret is deleted, and before the second release each package gets
+`npm trust github <pkg> --file release.yml --repo Code-Parth/figma-font-sync --allow-publish -y`. See
+`docs/releasing.md`.
