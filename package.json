@@ -5,9 +5,10 @@
   "workspaces": ["apps/*"],
   "scripts": {
     "gen": "bun run --cwd apps/helper openapi && bun run --cwd apps/plugin gen",
-    "typecheck": "bun run gen && bun run --cwd apps/helper typecheck && bun run --cwd apps/plugin typecheck",
+    "typecheck": "bun run gen && bun run --cwd apps/helper typecheck && bun run --cwd apps/plugin typecheck && tsc -p packaging/tsconfig.json && tsc -p testing/tsconfig.json",
     "test": "bun test",
-    "build": "bun run gen && bun run --cwd apps/plugin build && bun run --cwd apps/helper build"
+    "build": "bun run gen && bun run --cwd apps/plugin build && bun run --cwd apps/helper build",
+    "pack:npm": "bun run gen && bun run --cwd apps/plugin build && FONT_SYNC_PUBLIC_BUILD=1 bun --no-env-file apps/helper/scripts/build.ts && bun apps/helper/scripts/pack-npm.ts"
   },
   "devDependencies": {
     "@types/bun": "1.4.2",
