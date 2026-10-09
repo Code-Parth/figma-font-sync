@@ -1,0 +1,22 @@
+{
+  "name": "@font-sync/plugin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "openapi-ts",
+    "typecheck": "tsc -p tsconfig.main.json && tsc -p tsconfig.ui.json && tsc -p tsconfig.scripts.json && tsc -p tsconfig.test.json",
+    "build": "bun scripts/build.ts",
+    "dev": "bun scripts/build.ts --watch"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.104.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "1.141.0",
+    "@hey-api/openapi-ts": "0.99.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

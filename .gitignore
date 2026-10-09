@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+
+# generated from apps/helper/openapi.json by @hey-api/openapi-ts
+apps/plugin/src/ui/api/
+*.apps.googleusercontent.com.json

@@ -1,0 +1,21 @@
+{
+  "name": "@font-sync/helper",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "font-sync": "src/main.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/main.ts serve",
+    "start": "bun src/main.ts serve",
+    "openapi": "bun scripts/openapi.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "bun scripts/build.ts"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "hono": "4.13.13",
+    "zod": "4.6.5"
+  }
+}
