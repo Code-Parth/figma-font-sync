@@ -56,8 +56,9 @@ describe("darwin LaunchAgent", () => {
     expect(plist).toContain("<string>/Applications/Font Sync/font-sync</string>\n    <string>serve</string>");
     expect(plist).toContain("<key>RunAtLoad</key>\n  <true/>");
     expect(plist).toContain("<key>KeepAlive</key>\n  <true/>");
-    expect(plist).toContain(`<key>StandardOutPath</key>\n  <string>${home}/Library/Logs/font-sync.log</string>`);
-    expect(plist).toContain(`<key>StandardErrorPath</key>\n  <string>${home}/Library/Logs/font-sync.log</string>`);
+    const log = path.join(home, "Library", "Logs", "font-sync.log");
+    expect(plist).toContain(`<key>StandardOutPath</key>\n  <string>${log}</string>`);
+    expect(plist).toContain(`<key>StandardErrorPath</key>\n  <string>${log}</string>`);
     expect(await exists(path.join(home, "Library", "Logs"))).toBe(true);
 
     expect(runner.calls.map((call) => call.argv)).toEqual([
@@ -208,7 +209,8 @@ describe("win32 Run key", () => {
 });
 
 describe("linux systemd --user unit", () => {
-  it("writes the unit under XDG_CONFIG_HOME, reloads and enables it", async () => {
+  // XDG_CONFIG_HOME only counts when it is a POSIX absolute path, which a Windows temp dir is not.
+  it.skipIf(process.platform === "win32")("writes the unit under XDG_CONFIG_HOME, reloads and enables it", async () => {
     const configHome = path.join(home, "xdg-config");
     const unitFile = path.join(configHome, "systemd", "user", "font-sync.service");
     const { runner, deps: d } = deps();

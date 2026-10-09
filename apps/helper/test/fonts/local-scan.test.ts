@@ -22,8 +22,10 @@ afterEach(async () => {
 const posixUser = process.platform !== "win32" && process.getuid?.() !== 0;
 
 const font = (family: string, style = "Regular") => buildFont({ names: { 1: family, 2: style } });
+// Forward slashes on every OS, so the expectations below read the same on Windows.
+const relative = (file: string) => path.relative(dir, file).split(path.sep).join("/");
 const summary = (faces: LocalFace[]) =>
-  faces.map((f) => `${path.relative(dir, f.path)} ${f.face.family}/${f.face.style}${f.system ? " system" : ""}`);
+  faces.map((f) => `${relative(f.path)} ${f.face.family}/${f.face.style}${f.system ? " system" : ""}`);
 const readCache = async () =>
   JSON.parse(await readFile(cacheFile, "utf8")) as { version: number; files: Record<string, { error: string | null }> };
 
@@ -69,7 +71,7 @@ describe("scanLocalFonts", () => {
     ]);
     const cache = await readCache();
     expect(cache.version).toBe(1);
-    expect(Object.keys(cache.files).map((f) => path.relative(dir, f))).toEqual([
+    expect(Object.keys(cache.files).map(relative)).toEqual([
       "user/A.ttf",
       "user/D.otc",
       "user/broken.ttf",
