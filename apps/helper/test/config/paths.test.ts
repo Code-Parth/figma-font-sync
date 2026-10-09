@@ -13,6 +13,7 @@ describe("resolvePaths darwin", () => {
       configDir: "/Users/ana/Library/Application Support/font-sync",
       cacheDir: "/Users/ana/Library/Caches/font-sync",
       stateDir: "/Users/ana/Library/Application Support/font-sync",
+      dataDir: "/Users/ana/Library/Application Support/font-sync",
       installDir: "/Users/ana/Library/Fonts",
       fontDirs: [
         { path: "/Users/ana/Library/Fonts", system: false },
@@ -40,6 +41,7 @@ describe("resolvePaths win32", () => {
       configDir: "D:\\Profiles\\ana\\Roaming\\font-sync",
       cacheDir: "D:\\Profiles\\ana\\Local\\font-sync\\cache",
       stateDir: "D:\\Profiles\\ana\\Local\\font-sync",
+      dataDir: "D:\\Profiles\\ana\\Local\\font-sync",
       installDir: "D:\\Profiles\\ana\\Local\\Microsoft\\Windows\\Fonts",
       fontDirs: [
         { path: "D:\\Profiles\\ana\\Local\\Microsoft\\Windows\\Fonts", system: false },
@@ -53,6 +55,7 @@ describe("resolvePaths win32", () => {
       configDir: "C:\\Users\\ana\\AppData\\Roaming\\font-sync",
       cacheDir: "C:\\Users\\ana\\AppData\\Local\\font-sync\\cache",
       stateDir: "C:\\Users\\ana\\AppData\\Local\\font-sync",
+      dataDir: "C:\\Users\\ana\\AppData\\Local\\font-sync",
       installDir: "C:\\Users\\ana\\AppData\\Local\\Microsoft\\Windows\\Fonts",
       fontDirs: [
         { path: "C:\\Users\\ana\\AppData\\Local\\Microsoft\\Windows\\Fonts", system: false },
@@ -80,6 +83,7 @@ describe("resolvePaths linux", () => {
       configDir: "/cfg/font-sync",
       cacheDir: "/cache/font-sync",
       stateDir: "/state/font-sync",
+      dataDir: "/data/font-sync",
       installDir: "/data/fonts/font-sync",
       fontDirs: [
         { path: "/data/fonts", system: false },
@@ -95,6 +99,7 @@ describe("resolvePaths linux", () => {
       configDir: "/home/ana/.config/font-sync",
       cacheDir: "/home/ana/.cache/font-sync",
       stateDir: "/home/ana/.local/state/font-sync",
+      dataDir: "/home/ana/.local/share/font-sync",
       installDir: "/home/ana/.local/share/fonts/font-sync",
       fontDirs: [
         { path: "/home/ana/.local/share/fonts", system: false },

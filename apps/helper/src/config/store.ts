@@ -12,7 +12,15 @@ export type PairedClient = {
   lastUsedAt: string | null;
 };
 
-export type Config = { libraryFolderId: string | null; pairedClients: PairedClient[] };
+/** A Google "Desktop app" OAuth client. The secret of such a client is not confidential (Google). */
+export type StoredGoogleClient = { clientId: string; clientSecret: string | null };
+
+export type Config = {
+  libraryFolderId: string | null;
+  pairedClients: PairedClient[];
+  /** Set by `figma-font-sync setup`. Optional so config files written before it existed still parse. */
+  googleClient?: StoredGoogleClient | null;
+};
 
 export type InstalledFile = {
   fileId: string;
@@ -113,4 +121,13 @@ export class JsonFile<T> implements Store<T> {
       throw error;
     }
   }
+}
+
+/** `<configDir>/config.json`, mode 0600, shared by the server and every CLI command. */
+export function openConfig(configDir: string): JsonFile<Config> {
+  return new JsonFile<Config>(path.join(configDir, "config.json"), () => ({
+    libraryFolderId: null,
+    pairedClients: [],
+    googleClient: null,
+  }));
 }

@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 function pathsFor(dir: string): Paths {
-  return { configDir: root, cacheDir: root, stateDir: root, installDir: dir, fontDirs: [] };
+  return { configDir: root, cacheDir: root, stateDir: root, dataDir: root, installDir: dir, fontDirs: [] };
 }
 
 function input(overrides: Partial<InstallInput> = {}): InstallInput {

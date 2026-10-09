@@ -61,7 +61,7 @@ export class GoogleAuth {
   }
 
   /**
-   * Adopts the refresh token another process stored or deleted (`font-sync login`/`logout` while `serve` runs).
+   * Adopts the refresh token another process stored or deleted (`figma-font-sync login`/`logout` while `serve` runs).
    * True when it changed. Does nothing while a sign-in is in progress.
    */
   async syncStoredToken(): Promise<boolean> {
@@ -276,7 +276,7 @@ export class GoogleAuth {
           this.refreshToken = null;
           this.access = null;
           this.expired = true;
-          // `font-sync login` in another process may have stored a newer token; syncStoredToken picks it up.
+          // `figma-font-sync login` in another process may have stored a newer token; syncStoredToken picks it up.
           if ((await this.opts.secrets.get(REFRESH_TOKEN_SECRET)) === refreshToken) {
             await this.opts.secrets.delete(REFRESH_TOKEN_SECRET);
           }

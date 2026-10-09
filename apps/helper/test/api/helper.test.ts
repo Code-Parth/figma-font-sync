@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { saveGoogleClient } from "../../src/config/google-client";
 import type { SecretStore } from "../../src/config/secrets";
-import { createHelper, createQueue, expiringMemo, type HelperOptions } from "../../src/helper";
+import { openConfig } from "../../src/config/store";
+import { createHelper, createQueue, expiringMemo, type Helper, type HelperOptions } from "../../src/helper";
 
 const CLIENT_ENV = { FONT_SYNC_GOOGLE_CLIENT_ID: "test-client", FONT_SYNC_GOOGLE_CLIENT_SECRET: "test-secret" };
 
@@ -248,6 +250,94 @@ describe("createHelper", () => {
     expect(JSON.parse(stored).pairedClients).toHaveLength(1);
   });
 
+  it("reports not-configured with no client in the environment or config.json", async () => {
+    const helper = await createHelper(options({ env: {} }));
+    expect((await helper.status()).auth).toBe("not-configured");
+    await expect(helper.login()).rejects.toThrow("not configured");
+  });
+
+  it("signs in with the client stored in config.json", async () => {
+    await saveGoogleClient(openConfig(configDir()), { clientId: "config-client", clientSecret: "config-secret" });
+    const helper = await createHelper(options({ env: {} }));
+    expect((await helper.status()).auth).toBe("signed-out");
+    expect(await loginClientId(helper)).toBe("config-client");
+  });
+
+  it("prefers the environment's client over config.json", async () => {
+    await saveGoogleClient(openConfig(configDir()), { clientId: "config-client", clientSecret: null });
+    const helper = await createHelper(options());
+    expect(await loginClientId(helper)).toBe("test-client");
+  });
+
+  it("adopts a client that setup stores while it runs, with the sign-in already stored", async () => {
+    const helper = await createHelper(
+      options({
+        env: {},
+        secrets: memorySecrets({ "google-refresh-token": "refresh" }),
+        fetch: fakeGoogle({
+          token: (params) =>
+            params.get("client_id") === "config-client"
+              ? json({ access_token: "access", expires_in: 3600, token_type: "Bearer" })
+              : json({ error: "invalid_client" }, 401),
+          drive: (url) => (url.pathname.endsWith("/about") ? json({ user: ADA }) : json({ files: [] })),
+        }),
+      }),
+    );
+    expect((await helper.status()).auth).toBe("not-configured");
+    await saveGoogleClient(openConfig(configDir()), { clientId: "config-client", clientSecret: "config-secret" });
+    expect(await helper.status()).toMatchObject({ auth: "signed-in", account: { email: "ada@example.com" } });
+  });
+
+  it("adopts a client stored while it runs when sign-in starts before any status call", async () => {
+    const helper = await createHelper(options({ env: {} }));
+    await saveGoogleClient(openConfig(configDir()), { clientId: "config-client", clientSecret: null });
+    expect(await loginClientId(helper)).toBe("config-client");
+  });
+
+  it("follows a client that setup replaces while it runs, without a restart", async () => {
+    const config = openConfig(configDir());
+    await saveGoogleClient(config, { clientId: "client-a", clientSecret: "secret-a" });
+    const refreshedWith: (string | null)[] = [];
+    const secrets = memorySecrets({ "google-refresh-token": "refresh" });
+    const helper = await createHelper(
+      options({
+        env: {},
+        secrets,
+        fetch: fakeGoogle({
+          token: (params) => {
+            refreshedWith.push(`${params.get("client_id")}/${params.get("client_secret")}`);
+            return json({ access_token: `access-${refreshedWith.length}`, expires_in: 3600, token_type: "Bearer" });
+          },
+          drive: (url) => (url.pathname.endsWith("/about") ? json({ user: ADA }) : json({ files: [] })),
+        }),
+      }),
+    );
+    expect((await helper.status()).auth).toBe("signed-in");
+    await saveGoogleClient(config, { clientId: "client-b", clientSecret: "secret-b" });
+    // `setup` signs in again with the new client in its own process.
+    await secrets.set("google-refresh-token", "refresh-from-b");
+    expect((await helper.status()).auth).toBe("signed-in");
+    expect(refreshedWith).toEqual(["client-a/secret-a", "client-b/secret-b"]);
+    expect(await loginClientId(helper)).toBe("client-b");
+  });
+
+  it("keeps the client a sign-in in progress started with", async () => {
+    const config = openConfig(configDir());
+    await saveGoogleClient(config, { clientId: "client-a", clientSecret: null });
+    const helper = await createHelper(options({ env: {} }));
+    const { url, done } = await helper.login();
+    await saveGoogleClient(config, { clientId: "client-b", clientSecret: null });
+    expect((await helper.status()).auth).toBe("signing-in");
+
+    const params = new URL(url).searchParams;
+    expect(params.get("client_id")).toBe("client-a");
+    const callback = new URL(params.get("redirect_uri") ?? "");
+    callback.search = new URLSearchParams({ state: params.get("state") ?? "", error: "access_denied" }).toString();
+    await fetch(callback);
+    await expect(done).rejects.toThrow("access_denied");
+    expect(await loginClientId(helper)).toBe("client-b");
+  });
+
   it("opens the browser only when allowed, and never throws", async () => {
     const opened: string[] = [];
     const quietHelper = await createHelper(
@@ -266,6 +356,17 @@ describe("createHelper", () => {
     expect(quiet).toHaveBeenCalled();
   });
 });
+
+/** Starts sign-in, returns the client id it asks Google for, and cancels it so its loopback listener closes. */
+async function loginClientId(helper: Helper): Promise<string | null> {
+  const { url, done } = await helper.login();
+  const params = new URL(url).searchParams;
+  const callback = new URL(params.get("redirect_uri") ?? "");
+  callback.search = new URLSearchParams({ state: params.get("state") ?? "", error: "access_denied" }).toString();
+  await fetch(callback);
+  await expect(done).rejects.toThrow("access_denied");
+  return params.get("client_id");
+}
 
 describe("createQueue", () => {
   it("runs tasks one at a time and survives a failure", async () => {
