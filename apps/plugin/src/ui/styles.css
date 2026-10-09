@@ -85,6 +85,23 @@ ul {
   overflow-wrap: anywhere;
 }
 
+.command-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.command-row .command {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Wide enough for "Copied", so the label change does not shift the row. */
+.command-copy {
+  flex: none;
+  min-width: 56px;
+}
+
 /* Layout */
 
 .app {

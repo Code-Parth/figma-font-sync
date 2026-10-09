@@ -1,4 +1,5 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { copyText } from "./clipboard";
 import { asApiError } from "./errors";
 import type { Outcome } from "./library";
 
@@ -54,9 +55,48 @@ export function Screen({ title, children }: { title: string; children: ReactNode
   );
 }
 
-/** A shell command the user runs; one click selects all of it for copying. */
-export function Command({ children }: { children: string }) {
-  return <code className="command">{children}</code>;
+const COPIED_MS = 1500;
+
+/**
+ * A shell command the user runs. One click on the text selects all of it, which stays the manual way to copy
+ * when the Copy button can't reach the clipboard.
+ */
+export function Command({ children, copy = false }: { children: string; copy?: boolean }) {
+  return copy ? <CopyableCommand command={children} /> : <code className="command">{children}</code>;
+}
+
+function CopyableCommand({ command }: { command: string }) {
+  const announce = useAnnounce();
+  const id = useId();
+  const code = useRef<HTMLElement>(null);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const onCopy = () => {
+    clearTimeout(timer.current);
+    if (copyText(command)) {
+      setCopied(true);
+      announce("Copied to the clipboard.");
+      timer.current = setTimeout(() => setCopied(false), COPIED_MS);
+      return;
+    }
+    setCopied(false);
+    // Leaves the command selected, so the user's own copy shortcut picks it up.
+    if (code.current !== null) document.getSelection()?.selectAllChildren(code.current);
+    announce("Couldn't copy automatically. The command is selected; copy it with your keyboard.");
+  };
+
+  return (
+    <div className="command-row">
+      <code id={id} ref={code} className="command">
+        {command}
+      </code>
+      <button type="button" className="button secondary small command-copy" aria-describedby={id} onClick={onCopy}>
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
 }
 
 export function Loading({ text }: { text: string }) {

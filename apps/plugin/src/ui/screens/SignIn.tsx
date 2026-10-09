@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getStatusOptions, getStatusQueryKey } from "../api/@tanstack/react-query.gen";
 import { login } from "../api/sdk.gen";
 import type { Status } from "../api/types.gen";
-import { ErrorText, Screen, useAnnounce } from "../ui";
+import { Command, ErrorText, Screen, useAnnounce } from "../ui";
 
 const POLL_MS = 2000;
 /** Long enough to create a Google account mid-flow; short enough not to poll a forgotten tab all day. */
@@ -13,11 +13,11 @@ export function NotConfigured({ checking, onCheck }: { checking: boolean; onChec
   return (
     <Screen title="Google sign-in isn't set up">
       <p>
-        This copy of the helper has no Google OAuth client, so it can't sign in to Google Drive. Your admin needs to
-        build the helper with <span className="mono">FONT_SYNC_GOOGLE_CLIENT_ID</span> and{" "}
-        <span className="mono">FONT_SYNC_GOOGLE_CLIENT_SECRET</span> set, or you can start it with those environment
-        variables. The Font Sync README explains how to create the client.
+        The helper has no Google OAuth client, so it can't sign in to Google Drive. Ask your admin for the team's client
+        id and secret, then run this in a terminal and enter them:
       </p>
+      <Command copy>figma-font-sync setup</Command>
+      <p>The helper picks the client up without a restart. The Font Sync README explains how to create one.</p>
       <div className="actions">
         <button type="button" className="button secondary" onClick={onCheck} disabled={checking}>
           {checking ? "Checking..." : "Check again"}
