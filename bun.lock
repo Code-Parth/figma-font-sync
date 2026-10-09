@@ -12,7 +12,7 @@
     "apps/helper": {
       "name": "@font-sync/helper",
       "bin": {
-        "font-sync": "src/main.ts",
+        "figma-font-sync": "src/main.ts",
       },
       "dependencies": {
         "@hono/zod-openapi": "1.6.3",

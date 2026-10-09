@@ -4,14 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "font-sync": "src/main.ts"
+    "figma-font-sync": "src/main.ts"
   },
   "scripts": {
     "dev": "bun --watch src/main.ts serve",
     "start": "bun src/main.ts serve",
     "openapi": "bun scripts/openapi.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "build": "bun scripts/build.ts"
+    "build": "bun scripts/build.ts",
+    "pack:npm": "bun scripts/pack-npm.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",

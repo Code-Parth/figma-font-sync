@@ -3,10 +3,10 @@ import { join } from "node:path";
 import type { z } from "@hono/zod-openapi";
 import { Pairing } from "./api/pairing";
 import type { StatusSchema } from "./api/schemas";
-import { BUILT_IN_GOOGLE_CLIENT } from "./build-defaults";
+import { resolveGoogleClient } from "./config/google-client";
 import { type Platform, resolvePaths } from "./config/paths";
 import { createSecretStore, type SecretStore } from "./config/secrets";
-import { type Config, type FacesCache, type InstalledState, JsonFile } from "./config/store";
+import { type FacesCache, type InstalledState, JsonFile, openConfig } from "./config/store";
 import { scanLocalFonts } from "./fonts/local-scan";
 import type { FontKey } from "./fonts/types";
 import { DriveClient } from "./google/drive";
@@ -72,10 +72,7 @@ export async function createHelper(opts: HelperOptions): Promise<Helper> {
   await Promise.all(
     [paths.configDir, paths.cacheDir, paths.stateDir].map((dir) => mkdir(dir, { recursive: true, mode: 0o700 })),
   );
-  const config = new JsonFile<Config>(join(paths.configDir, "config.json"), () => ({
-    libraryFolderId: null,
-    pairedClients: [],
-  }));
+  const config = openConfig(paths.configDir);
   const installed = new JsonFile<InstalledState>(join(paths.stateDir, "installed.json"), () => ({
     files: {},
     pendingDeletes: [],
@@ -91,12 +88,13 @@ export async function createHelper(opts: HelperOptions): Promise<Helper> {
     }
   };
 
-  const auth = new GoogleAuth({
-    client: googleClient(env),
-    secrets: opts.secrets ?? createSecretStore(paths.configDir),
-    openUrl: openBrowser,
-    fetch: opts.fetch,
-  });
+  const secrets = opts.secrets ?? createSecretStore(paths.configDir);
+  const newAuth = (client: GoogleClientConfig | null) =>
+    new GoogleAuth({ client, secrets, openUrl: openBrowser, fetch: opts.fetch });
+  /** The client `auth` was built with. */
+  let client = resolveGoogleClient(env, await config.read())?.client ?? null;
+  let auth = newAuth(client);
+  // Reads `auth` on every request, so it follows a GoogleAuth that adoptConfiguredClient replaced.
   const drive = new DriveClient(
     { accessToken: () => auth.accessToken(), invalidate: (token) => auth.invalidateAccessToken(token) },
     opts.fetch,
@@ -119,10 +117,33 @@ export async function createHelper(opts: HelperOptions): Promise<Helper> {
   let lastStatusWarning: string | null = null;
 
   /**
-   * `font-sync login` and `logout` run in their own process and change only the stored token. The plugin
-   * does not poll /status while the helper is healthy, so every Drive-backed call checks too.
+   * `figma-font-sync setup` (or a hand edit) changes the Google client in config.json while this helper runs,
+   * and nothing restarts it on Windows, or on Linux where `systemctl enable --now` leaves a running unit alone.
+   * Following the change here means a new client works without a restart, and this helper never refreshes
+   * a token that another process got from the new client with the old one.
+   */
+  async function adoptConfiguredClient(): Promise<void> {
+    // A sign-in this helper started owns its loopback listener and the client it sent to Google.
+    if (auth.state() === "signing-in") return;
+    const resolved = resolveGoogleClient(env, await config.read())?.client ?? null;
+    if (!resolved || sameClient(resolved, client)) return;
+    const next = newAuth(resolved);
+    await next.init();
+    // A concurrent call may have adopted it, or started a sign-in, while this one waited.
+    if (auth.state() === "signing-in" || sameClient(resolved, client)) return;
+    client = resolved;
+    auth = next;
+    account = null;
+    library = newLibrary();
+  }
+
+  /**
+   * `figma-font-sync login`, `logout` and `setup` run in their own process and change only the stored token
+   * and config.json. The plugin does not poll /status while the helper is healthy, so every Drive-backed call
+   * checks too.
    */
   async function followStoredToken(): Promise<void> {
+    await adoptConfiguredClient();
     if (await auth.syncStoredToken()) {
       account = null;
       library = newLibrary();
@@ -218,6 +239,7 @@ export async function createHelper(opts: HelperOptions): Promise<Helper> {
     print: (line) => console.log(line.replace(/\p{Cc}/gu, "")),
     status,
     async login() {
+      await adoptConfiguredClient();
       const { url, done } = await auth.startLogin();
       const finished = done.then(afterLogin);
       // The plugin polls /status instead of waiting on this; only the CLI awaits it.
@@ -248,15 +270,6 @@ export async function createHelper(opts: HelperOptions): Promise<Helper> {
     remove: (fileId) => asStoredAccount(() => serialize(() => library.remove(fileId))),
     members: () => asStoredAccount(() => library.members()),
   };
-}
-
-/** Runtime env wins as a pair; the client baked in at build time is the fallback. */
-function googleClient(env: Record<string, string | undefined>): GoogleClientConfig | null {
-  if (env.FONT_SYNC_GOOGLE_CLIENT_ID) {
-    return { clientId: env.FONT_SYNC_GOOGLE_CLIENT_ID, clientSecret: env.FONT_SYNC_GOOGLE_CLIENT_SECRET || null };
-  }
-  const { clientId, clientSecret } = BUILT_IN_GOOGLE_CLIENT;
-  return clientId ? { clientId, clientSecret: clientSecret || null } : null;
 }
 
 /** Runs tasks one at a time in call order; a failed task does not stop the ones queued after it. */
@@ -290,6 +303,10 @@ export function expiringMemo<T>(
       entry = null;
     },
   };
+}
+
+function sameClient(a: GoogleClientConfig | null, b: GoogleClientConfig | null): boolean {
+  return a?.clientId === b?.clientId && a?.clientSecret === b?.clientSecret;
 }
 
 export function errorMessage(err: unknown): string {

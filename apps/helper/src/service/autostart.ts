@@ -1,12 +1,12 @@
 import { chmod, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Platform } from "../config/paths";
-import { type CommandRunner, runCommand } from "../install/run";
+import { type CommandResult, type CommandRunner, runCommand } from "../install/run";
 
 export type AutostartStatus = { enabled: boolean; detail: string };
 
 /**
- * Starts `font-sync serve` at login as the current user (never as a system service, which would
+ * Starts `figma-font-sync serve` at login as the current user (never as a system service, which would
  * install fonts into the wrong profile):
  *   darwin  ~/Library/LaunchAgents/com.apexialabs.font-sync.plist, RunAtLoad + KeepAlive, launchctl bootstrap gui/<uid>
  *   win32   HKCU\Software\Microsoft\Windows\CurrentVersion\Run value "FontSync"
@@ -18,6 +18,20 @@ export interface Autostart {
   enable(command: string[], env?: Record<string, string>): Promise<void>;
   disable(): Promise<void>;
   status(): Promise<AutostartStatus>;
+  /** The plist exists, the Run value exists, or the unit is enabled. */
+  isRegistered(): Promise<boolean>;
+  /**
+   * Starts (or restarts) the registered helper through the service manager now, not at next login. False
+   * when nothing is registered, and always on Windows, where the Run key only acts at login.
+   */
+  startService(): Promise<boolean>;
+  /**
+   * Stops the registered helper through the service manager, so launchd's KeepAlive does not respawn it.
+   * False when nothing is registered, and always on Windows.
+   */
+  stopService(): Promise<boolean>;
+  /** Where the service manager appends the helper's output, when that is a file (macOS only). */
+  readonly logFile?: string;
 }
 
 export type AutostartDeps = {
@@ -60,7 +74,21 @@ function launchAgent(home: string, deps: AutostartDeps): Autostart {
   // A service target, never the bare gui/<uid> domain: `bootout gui/<uid>` tears down the whole login session.
   const service = () => `gui/${deps.uid()}/${LAUNCH_AGENT_LABEL}`;
 
+  /** Loads the plist; with RunAtLoad that also starts the helper. */
+  async function bootstrap(): Promise<void> {
+    // bootout returns before launchd has finished removing the job, so an immediate bootstrap can fail with
+    // "Bootstrap failed: 5: Input/output error" for a moment.
+    let result = await deps.run(["launchctl", "bootstrap", `gui/${deps.uid()}`, plist]);
+    for (let attempt = 1; result.code !== 0 && attempt < 5; attempt++) {
+      await deps.sleep(500);
+      result = await deps.run(["launchctl", "bootstrap", `gui/${deps.uid()}`, plist]);
+    }
+    if (result.code !== 0) throw new Error(`launchctl bootstrap failed: ${result.stderr.trim() || result.code}`);
+  }
+
   return {
+    logFile: log,
+
     async enable(command, env) {
       await mkdir(path.dirname(plist), { recursive: true });
       await mkdir(path.dirname(log), { recursive: true });
@@ -70,14 +98,7 @@ function launchAgent(home: string, deps: AutostartDeps): Autostart {
       await chmod(plist, 0o600);
       // Fails when nothing is loaded yet, which is fine.
       await deps.run(["launchctl", "bootout", service()]).catch(() => undefined);
-      // bootout returns before launchd has finished removing the job, so an immediate bootstrap can fail with
-      // "Bootstrap failed: 5: Input/output error" for a moment.
-      let result = await deps.run(["launchctl", "bootstrap", `gui/${deps.uid()}`, plist]);
-      for (let attempt = 1; result.code !== 0 && attempt < 5; attempt++) {
-        await deps.sleep(500);
-        result = await deps.run(["launchctl", "bootstrap", `gui/${deps.uid()}`, plist]);
-      }
-      if (result.code !== 0) throw new Error(`launchctl bootstrap failed: ${result.stderr.trim() || result.code}`);
+      await bootstrap();
     },
 
     async disable() {
@@ -91,7 +112,39 @@ function launchAgent(home: string, deps: AutostartDeps): Autostart {
         ? { enabled: true, detail: `LaunchAgent ${plist}` }
         : { enabled: false, detail: `No LaunchAgent at ${plist}` };
     },
+
+    isRegistered: () => exists(plist),
+
+    async startService() {
+      if (!(await exists(plist))) return false;
+      // -k kills a running instance first, so this is also how an upgraded helper replaces the old one.
+      const result = await deps.run(["launchctl", "kickstart", "-k", service()]);
+      if (result.code === 0) return true;
+      // `stop` boots the job out, and after that only a bootstrap (or the next login) loads it again.
+      if (!notLoaded(result)) throw new Error(`launchctl kickstart failed: ${launchctlMessage(result)}`);
+      await bootstrap();
+      return true;
+    },
+
+    async stopService() {
+      if (!(await exists(plist))) return false;
+      // Killing the process is not enough: KeepAlive respawns it. RunAtLoad starts it again at next login.
+      const result = await deps.run(["launchctl", "bootout", service()]);
+      if (result.code !== 0 && !notLoaded(result)) {
+        throw new Error(`launchctl bootout failed: ${launchctlMessage(result)}`);
+      }
+      return true;
+    },
   };
+}
+
+/** 113 "Could not find specified service" and 3 "No such process" both mean the job is not loaded. */
+function notLoaded(result: CommandResult): boolean {
+  return result.code === 113 || result.code === 3 || /could not find|no such process/i.test(launchctlMessage(result));
+}
+
+function launchctlMessage(result: CommandResult): string {
+  return result.stderr.trim() || result.stdout.trim() || String(result.code);
 }
 
 export function launchAgentPlist(command: string[], log: string, env: Record<string, string> = {}): string {
@@ -159,6 +212,12 @@ function runKey(deps: AutostartDeps): Autostart {
       const data = /\sREG_SZ\s+(.*)$/m.exec(result.stdout)?.[1]?.trim();
       return { enabled: true, detail: data ? `${RUN_VALUE}: ${data}` : `${RUN_VALUE} value in ${RUN_KEY}` };
     },
+
+    isRegistered: async () => (await query()).code === 0,
+
+    // The Run key only acts at login; the caller starts the background exe itself.
+    startService: async () => false,
+    stopService: async () => false,
   };
 }
 
@@ -181,6 +240,13 @@ function systemdUnit(home: string, env: Record<string, string | undefined>, deps
     }
   }
 
+  async function status(): Promise<AutostartStatus> {
+    const result = await deps.run(["systemctl", "--user", "is-enabled", UNIT]).catch(() => null);
+    if (result === null) return { enabled: false, detail: "systemctl is not available" };
+    const state = result.stdout.trim() || result.stderr.trim();
+    return { enabled: result.code === 0 && state === "enabled", detail: `${UNIT}: ${state || "unknown"}` };
+  }
+
   return {
     async enable(command, env) {
       await mkdir(path.dirname(unitFile), { recursive: true });
@@ -198,11 +264,22 @@ function systemdUnit(home: string, env: Record<string, string | undefined>, deps
       await systemctl("daemon-reload").catch(() => undefined);
     },
 
-    async status() {
-      const result = await deps.run(["systemctl", "--user", "is-enabled", UNIT]).catch(() => null);
-      if (result === null) return { enabled: false, detail: "systemctl is not available" };
-      const state = result.stdout.trim() || result.stderr.trim();
-      return { enabled: result.code === 0 && state === "enabled", detail: `${UNIT}: ${state || "unknown"}` };
+    status,
+
+    isRegistered: async () => (await status()).enabled,
+
+    async startService() {
+      if (!(await status()).enabled) return false;
+      // restart also starts a stopped unit, and replaces a running older helper.
+      await systemctl("restart", UNIT);
+      return true;
+    },
+
+    async stopService() {
+      if (!(await status()).enabled) return false;
+      // Restart=on-failure treats SIGTERM as a clean exit, so a stopped unit stays stopped until next login.
+      await systemctl("stop", UNIT);
+      return true;
     },
   };
 }

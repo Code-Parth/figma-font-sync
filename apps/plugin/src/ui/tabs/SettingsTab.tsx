@@ -129,7 +129,7 @@ export function SettingsTab({ status, library, version, onChangeLibrary, onUnpai
           </li>
           <li>
             Linux: Figma has no desktop app, so this plugin can't run there. Run{" "}
-            <span className="mono">font-sync sync</span> to install the whole library instead.
+            <span className="mono">figma-font-sync sync</span> to install the whole library instead.
           </li>
         </ul>
       </section>

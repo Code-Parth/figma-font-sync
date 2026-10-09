@@ -14,7 +14,8 @@ import { Unreachable } from "./screens/Unreachable";
 import { describeSelection, initialState, type ReloadReason, reducer } from "./state";
 import { AnnounceProvider, ErrorText, Loading, Screen, useAnnounce } from "./ui";
 
-const HEALTH_DOWN_POLL_MS = 3000;
+/** The Unreachable screen moves on by itself: the longest a just-started helper goes unnoticed. */
+const HEALTH_DOWN_POLL_MS = 2000;
 /** Notices a helper that stopped while the plugin sits open. Cheap: /health is a local, unauthenticated GET. */
 const HEALTH_UP_POLL_MS = 30_000;
 /** Slower than the health poll: every status check calls Google Drive. */
@@ -112,7 +113,9 @@ function Gate() {
   if (!state.ready || health.isPending) {
     screen = <Loading text="Connecting to the Font Sync helper..." />;
   } else if (health.isError) {
-    screen = <Unreachable checking={health.isFetching} onCheck={() => void health.refetch()} />;
+    screen = (
+      <Unreachable paired={state.token !== null} checking={health.isFetching} onCheck={() => void health.refetch()} />
+    );
   } else if (state.token === null) {
     screen = <Pairing revoked={false} onPaired={changeToken} />;
   } else if (status.isPending) {

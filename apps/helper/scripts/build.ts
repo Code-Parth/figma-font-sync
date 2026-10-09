@@ -1,4 +1,4 @@
-import { cp, mkdir, rm } from "node:fs/promises";
+import { chmod, cp, mkdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const TARGETS = [
@@ -6,7 +6,6 @@ const TARGETS = [
   "bun-darwin-x64",
   "bun-windows-x64",
   "bun-linux-x64",
-  "bun-linux-arm64",
 ] as const satisfies readonly Bun.Build.CompileTarget[];
 type Target = (typeof TARGETS)[number];
 
@@ -16,6 +15,7 @@ const BUILD_TIME_ENV = ["FONT_SYNC_GOOGLE_CLIENT_ID", "FONT_SYNC_GOOGLE_CLIENT_S
 const helperDir = resolve(import.meta.dir, "..");
 const pluginDir = resolve(helperDir, "../plugin");
 const distDir = join(helperDir, "dist");
+// The binary finds it at join(import.meta.dir, "figma-plugin"): compile.assets embeds a directory under its basename.
 const pluginOut = join(distDir, "figma-plugin");
 
 function fail(message: string): never {
@@ -48,7 +48,7 @@ async function checkPluginBuilt(): Promise<void> {
 
 function outfileFor(target: Target, suffix = ""): string {
   const [, os, arch] = target.split("-");
-  return join(distDir, `font-sync-${os}-${arch}${suffix}${os === "windows" ? ".exe" : ""}`);
+  return join(distDir, `figma-font-sync-${os}-${arch}${suffix}${os === "windows" ? ".exe" : ""}`);
 }
 
 async function run(argv: string[]): Promise<void> {
@@ -65,11 +65,26 @@ for (const name of BUILD_TIME_ENV) {
   const value = process.env[name];
   if (value) define[`process.env.${name}`] = JSON.stringify(value);
 }
-if (!define["process.env.FONT_SYNC_GOOGLE_CLIENT_ID"]) {
-  console.warn("build: FONT_SYNC_GOOGLE_CLIENT_ID is not set; the binaries will need it at runtime.");
+if (process.env.FONT_SYNC_PUBLIC_BUILD === "1") {
+  // Anyone can download a published binary and read the strings in it.
+  const baked = BUILD_TIME_ENV.filter((name) => process.env[name]);
+  if (baked.length > 0) {
+    fail(
+      `FONT_SYNC_PUBLIC_BUILD=1 needs ${baked.join(" and ")} unset: public builds never carry a Google client. ` +
+        "Bun also reads them from a .env file in the current directory.",
+    );
+  }
+} else if (!define["process.env.FONT_SYNC_GOOGLE_CLIENT_ID"]) {
+  console.warn("build: no Google client baked in; users add one with `figma-font-sync setup` or the env vars.");
 }
 
-await mkdir(distDir, { recursive: true });
+await rm(pluginOut, { recursive: true, force: true });
+await mkdir(pluginOut, { recursive: true });
+await cp(join(pluginDir, "manifest.json"), join(pluginOut, "manifest.json"));
+// Keep the dist/ folder: manifest.json refers to dist/code.js and dist/ui.html.
+await cp(join(pluginDir, "dist"), join(pluginOut, "dist"), { recursive: true });
+console.log(`staged the Figma plugin in ${pluginOut}`);
+
 for (const target of targets) {
   // Windows start-at-login runs a copy with no console window; a console program started from the Run key
   // opens one at every login. That copy cannot print, so the CLI stays a console program.
@@ -77,11 +92,12 @@ for (const target of targets) {
   for (const hideConsole of variants) {
     const outfile = outfileFor(target, hideConsole ? "-background" : "");
     const result = await Bun.build({
-      entrypoints: [join(helperDir, "src/main.ts")],
+      entrypoints: [join(helperDir, "src/bin.ts")],
       // A .env or bunfig.toml in whatever directory the binary starts in must not change its behaviour.
       compile: {
         target,
         outfile,
+        assets: [pluginOut],
         autoloadDotenv: false,
         autoloadBunfig: false,
         ...(hideConsole ? { windows: { hideConsole: true } } : {}),
@@ -91,17 +107,14 @@ for (const target of targets) {
       throw: false,
     });
     if (!result.success) fail(`${target} failed:\n${result.logs.join("\n")}`);
-    // Bun 1.4.0 writes darwin binaries with an invalid signature that macOS kills on launch (oven-sh/bun#39758).
+    // Bun 1.4.0 writes darwin-arm64 binaries with an invalid signature (oven-sh/bun#39764), and no Bun version
+    // re-signs darwin-x64 output after patching it. macOS 27 kills binaries whose pages fail the signature.
     if (process.platform === "darwin" && target.startsWith("bun-darwin")) {
       await run(["codesign", "--force", "--sign", "-", outfile]);
+      await run(["codesign", "--verify", "--strict", outfile]);
     }
+    // pack-npm.ts and npm pack keep the mode they find, so this is what lands on users' machines.
+    await chmod(outfile, 0o755);
     console.log(`built ${outfile}`);
   }
 }
-
-await rm(pluginOut, { recursive: true, force: true });
-await mkdir(pluginOut, { recursive: true });
-await cp(join(pluginDir, "manifest.json"), join(pluginOut, "manifest.json"));
-// Keep the dist/ folder: manifest.json refers to dist/code.js and dist/ui.html.
-await cp(join(pluginDir, "dist"), join(pluginOut, "dist"), { recursive: true });
-console.log(`copied the Figma plugin to ${pluginOut}`);

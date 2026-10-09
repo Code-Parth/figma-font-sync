@@ -2,6 +2,8 @@
 
 A Figma plugin plus a per-machine helper that share one font library stored in a Google Drive
 folder named `font-sync-figma-plugin`. Drive sharing on that folder is the permission model.
+How it is packaged, installed and kept running (npm, binaries, `setup`, start at login):
+`docs/distribution.md`.
 
 ## Why the pieces are shaped this way
 
@@ -9,12 +11,14 @@ folder named `font-sync-figma-plugin`. Drive sharing on that folder is the permi
 |---|---|
 | Plugins cannot write to disk or install fonts | A helper process on each machine installs fonts |
 | Figma's only OAuth pattern for plugins needs a public HTTPS server; we host nothing | The helper does Google sign-in itself (Desktop client, loopback redirect, PKCE). The plugin never sees Google tokens |
-| `drive.file` is per user and per file: B cannot see fonts A uploaded, even in a folder shared with B, and picking a folder does not grant its children | The helper requests the restricted `https://www.googleapis.com/auth/drive` scope. Workspace: consent screen "Internal". Gmail: "External", published "In production" (unverified, under 100 users). Never "Testing": refresh tokens die after 7 days |
+| `drive.file` is per user and per file: B cannot see fonts A uploaded, even in a folder shared with B, and picking a folder does not grant its children | The helper requests the restricted `https://www.googleapis.com/auth/drive` scope. Workspace: consent screen "Internal". Gmail: "External", published "In production" (unverified, under 100 users). "Testing" only to try it: refresh tokens die after 7 days |
+| The helper is a public npm package, and anyone can read the strings in a published binary | No Google client ships in it. Each team creates its own Desktop-app client; the helper takes `FONT_SYNC_GOOGLE_CLIENT_ID`/`_SECRET` from the env, else `googleClient` in `config.json` (written by `figma-font-sync setup`), else one baked in by a private build |
 | Plugin iframes have origin `null`; manifest `allowedDomains` rejects IP literals | The plugin calls `http://localhost:47321`; the helper listens on both `127.0.0.1` and `::1` |
 | Any web page can send `Origin: null`; every plugin shares figma.com's loopback grant | Every helper route except `/health` and pairing needs a bearer token issued by pairing |
 | The Plugin API exposes only `{family, style}`, never a PostScript name | The helper must compute Figma's exact `{family, style}` from font files |
 | Figma's naming rule (verified on 1,351 of 1,352 faces): family = name ID 16 else 1; style = name ID 17 else 2; variable fonts give one style per `fvar` named instance; families starting with `.` are hidden | `fonts/sfnt.ts` implements exactly this |
 | `listAvailableFontsAsync` includes Google Fonts, Figma-uploaded fonts and local fonts with no source field | "Missing in Figma" comes from the plugin; "installed on this OS" comes from the helper's disk scan |
+| Figma desktop cannot start programs for a plugin: `figma.openExternal` allows only http, https, mailto and tel | The helper starts at login once `setup` has run; when the plugin cannot reach it, it shows `figma-font-sync start` to copy and polls `/health` |
 | Figma may not see a newly installed font until the file tab reloads | After installing, the UI tells the user to reload the tab (right-click tab > Reload tab) and re-scan |
 | Windows locks loaded font files; Drive files can change | Installed files are named `<PostScriptName>-<md5 8>.<ext>`, never overwritten; old versions are deleted lazily |
 | In a personal My Drive folder only the owner of a file can trash it | "Remove from library" trashes when `capabilities.canTrash`, otherwise removes the file from the folder |
@@ -34,6 +38,8 @@ helper (apps/helper)              Bun process on 127.0.0.1/::1:47321, runs as th
   fonts/     sfnt parser, Figma key + matching, local font scan
   install/   per-OS install and uninstall
   service/   autostart (LaunchAgent, HKCU Run key, systemd --user)
+  cli/       setup, start/stop, doctor, uninstall: runtime copy in <dataDir>/bin, plugin files, helper.pid
+  config/    per-OS paths, config.json (incl. the Google client), OS keychain via Bun.secrets
         | HTTPS
 Google Drive folder "font-sync-figma-plugin"
   *.ttf *.otf *.ttc *.otc (any depth)  + font-sync-index.json (shared face cache)

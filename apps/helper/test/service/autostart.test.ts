@@ -305,3 +305,128 @@ WantedBy=default.target
     expect(systemdUnitFile(["/bin/font-sync"])).not.toContain("Environment=");
   });
 });
+
+describe("darwin service control", () => {
+  const plistPath = () => path.join(home, "Library", "LaunchAgents", "com.apexialabs.font-sync.plist");
+  const registered = async () => {
+    await mkdir(path.dirname(plistPath()), { recursive: true });
+    await writeFile(plistPath(), launchAgentPlist(["/bin/font-sync", "serve"], "/log"));
+  };
+
+  it("does nothing without the LaunchAgent", async () => {
+    const { runner, deps: d } = deps();
+    const autostart = createAutostartWith("darwin", home, {}, d);
+    expect(await autostart.isRegistered()).toBe(false);
+    expect(await autostart.startService()).toBe(false);
+    expect(await autostart.stopService()).toBe(false);
+    expect(runner.calls).toEqual([]);
+  });
+
+  it("names the LaunchAgent's log", () => {
+    expect(createAutostartWith("darwin", home, {}, deps().deps).logFile).toBe(
+      path.join(home, "Library", "Logs", "font-sync.log"),
+    );
+  });
+
+  it("starts with kickstart -k on the service target", async () => {
+    await registered();
+    const { runner, deps: d } = deps();
+    const autostart = createAutostartWith("darwin", home, {}, d);
+    expect(await autostart.isRegistered()).toBe(true);
+    expect(await autostart.startService()).toBe(true);
+    expect(runner.calls.map((call) => call.argv)).toEqual([
+      ["launchctl", "kickstart", "-k", "gui/501/com.apexialabs.font-sync"],
+    ]);
+  });
+
+  it("bootstraps the plist when a stop booted the job out", async () => {
+    await registered();
+    const { runner, deps: d } = deps((call) =>
+      call.argv[1] === "kickstart"
+        ? { code: 113, stdout: "", stderr: 'Could not find service "com.apexialabs.font-sync" in domain for user gui: 501' }
+        : ok(),
+    );
+    expect(await createAutostartWith("darwin", home, {}, d).startService()).toBe(true);
+    expect(runner.calls.map((call) => call.argv)).toEqual([
+      ["launchctl", "kickstart", "-k", "gui/501/com.apexialabs.font-sync"],
+      ["launchctl", "bootstrap", "gui/501", plistPath()],
+    ]);
+  });
+
+  it("reports any other kickstart failure", async () => {
+    await registered();
+    const { runner, deps: d } = deps(() => ({ code: 1, stdout: "", stderr: "Operation not permitted" }));
+    await expect(createAutostartWith("darwin", home, {}, d).startService()).rejects.toThrow("Operation not permitted");
+    expect(runner.calls).toHaveLength(1);
+  });
+
+  it("stops with bootout, so KeepAlive cannot respawn it, and keeps the plist", async () => {
+    await registered();
+    const { runner, deps: d } = deps();
+    expect(await createAutostartWith("darwin", home, {}, d).stopService()).toBe(true);
+    expect(runner.calls.map((call) => call.argv)).toEqual([["launchctl", "bootout", "gui/501/com.apexialabs.font-sync"]]);
+    expect(await exists(plistPath())).toBe(true);
+  });
+
+  it("treats a job that is not loaded as stopped, and reports other bootout failures", async () => {
+    await registered();
+    const notLoaded = deps(() => ({ code: 3, stdout: "", stderr: "Boot-out failed: 3: No such process" }));
+    expect(await createAutostartWith("darwin", home, {}, notLoaded.deps).stopService()).toBe(true);
+    const failing = deps(() => fail("Boot-out failed: 1: Operation not permitted"));
+    await expect(createAutostartWith("darwin", home, {}, failing.deps).stopService()).rejects.toThrow(
+      "Operation not permitted",
+    );
+  });
+});
+
+describe("win32 service control", () => {
+  it("is registered when the Run value exists, and never starts or stops anything itself", async () => {
+    const present = deps();
+    const autostart = createAutostartWith("win32", home, {}, present.deps);
+    expect(await autostart.isRegistered()).toBe(true);
+    expect(present.runner.calls.map((call) => call.argv)).toEqual([
+      ["reg.exe", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "FontSync"],
+    ]);
+    present.runner.calls.length = 0;
+    expect(await autostart.startService()).toBe(false);
+    expect(await autostart.stopService()).toBe(false);
+    expect(present.runner.calls).toEqual([]);
+    expect(autostart.logFile).toBeUndefined();
+
+    const absent = deps(() => fail());
+    expect(await createAutostartWith("win32", home, {}, absent.deps).isRegistered()).toBe(false);
+  });
+});
+
+describe("linux service control", () => {
+  const enabledUnit = (call: RecordedCall) => (call.argv[2] === "is-enabled" ? ok("enabled\n") : ok());
+
+  it("restarts and stops the enabled unit", async () => {
+    const { runner, deps: d } = deps(enabledUnit);
+    const autostart = createAutostartWith("linux", home, {}, d);
+    expect(await autostart.isRegistered()).toBe(true);
+    expect(await autostart.startService()).toBe(true);
+    expect(await autostart.stopService()).toBe(true);
+    expect(runner.calls.map((call) => call.argv.slice(2))).toEqual([
+      ["is-enabled", "font-sync.service"],
+      ["is-enabled", "font-sync.service"],
+      ["restart", "font-sync.service"],
+      ["is-enabled", "font-sync.service"],
+      ["stop", "font-sync.service"],
+    ]);
+  });
+
+  it("leaves a disabled unit alone", async () => {
+    const { runner, deps: d } = deps(() => ({ code: 1, stdout: "disabled\n", stderr: "" }));
+    const autostart = createAutostartWith("linux", home, {}, d);
+    expect(await autostart.isRegistered()).toBe(false);
+    expect(await autostart.startService()).toBe(false);
+    expect(await autostart.stopService()).toBe(false);
+    expect(runner.calls.every((call) => call.argv[2] === "is-enabled")).toBe(true);
+  });
+
+  it("reports a failed restart", async () => {
+    const { deps: d } = deps((call) => (call.argv[2] === "restart" ? fail("Unit font-sync.service failed") : enabledUnit(call)));
+    await expect(createAutostartWith("linux", home, {}, d).startService()).rejects.toThrow("Unit font-sync.service failed");
+  });
+});

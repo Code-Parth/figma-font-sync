@@ -7,8 +7,13 @@ export type Paths = {
   configDir: string;
   /** library-faces.json and local-fonts.json; safe to delete. */
   cacheDir: string;
-  /** installed.json. */
+  /** installed.json, helper.pid and the log of a helper `start` spawned (the macOS LaunchAgent logs to ~/Library/Logs). */
   stateDir: string;
+  /**
+   * The copy of the binary the background helper runs and the Figma plugin files users import. Kept apart
+   * from wherever npm or install.sh put the CLI, so upgrades never replace a running executable.
+   */
+  dataDir: string;
   /** Where Font Sync writes font files it installs. */
   installDir: string;
   /** Directories scanned for fonts already on this machine. `system` faces are never offered for upload. */
@@ -35,6 +40,7 @@ export function resolvePaths(platform: Platform, env: Record<string, string | un
         configDir,
         cacheDir: join(home, "Library", "Caches", APP),
         stateDir: configDir,
+        dataDir: configDir,
         installDir,
         fontDirs: [
           { path: installDir, system: false },
@@ -54,6 +60,7 @@ export function resolvePaths(platform: Platform, env: Record<string, string | un
         configDir: join(roaming, APP),
         cacheDir: join(stateDir, "cache"),
         stateDir,
+        dataDir: stateDir,
         installDir,
         fontDirs: [
           { path: installDir, system: false },
@@ -73,6 +80,7 @@ export function resolvePaths(platform: Platform, env: Record<string, string | un
         configDir: join(config, APP),
         cacheDir: join(cache, APP),
         stateDir: join(state, APP),
+        dataDir: join(data, APP),
         // fontconfig recurses into subdirectories, so our own folder keeps uninstall and scans simple.
         installDir: join(userFonts, APP),
         fontDirs: [

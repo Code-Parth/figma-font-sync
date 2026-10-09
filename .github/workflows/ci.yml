@@ -48,3 +48,64 @@ jobs:
 
       - name: Plugin bundles to dist/code.js and a single dist/ui.html
         run: bun run --cwd apps/plugin build
+
+  shellcheck:
+    name: shellcheck install.sh
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Preinstalled on GitHub's Ubuntu images.
+      - run: shellcheck --shell=sh packaging/install.sh
+
+  package:
+    name: package (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+          - os: macos-latest
+            target: bun-darwin-arm64
+          - os: windows-latest
+            target: bun-windows-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - run: bun install --frozen-lockfile
+
+      # The plugin imports the client generated from openapi.json.
+      - run: bun run gen
+
+      - run: bun run --cwd apps/plugin build
+
+      - name: Build the helper for this runner only
+        run: bun run --cwd apps/helper build
+        env:
+          FONT_SYNC_TARGETS: ${{ matrix.target }}
+          FONT_SYNC_PUBLIC_BUILD: "1"
+
+      - run: bun apps/helper/scripts/pack-npm.ts --partial
+
+      # npm pack, npm install -g into a temp prefix, run version and plugin with a temp home; install.sh --from
+      # on macOS and Linux.
+      - run: bun packaging/smoke.ts

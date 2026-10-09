@@ -1,0 +1,54 @@
+figma-font-sync Licence
+
+Copyright (c) 2026 Parth Parmar. All rights reserved.
+
+This licence covers figma-font-sync: the npm packages "figma-font-sync" and "@figma-font-sync/*", the
+programs and Figma plugin files they contain, and their documentation (together, "the Software").
+
+1. Permission
+
+   You may download, install and use the Software free of charge, unmodified, for your personal
+   purposes or for the internal business purposes of your organisation. Your organisation's employees
+   and contractors may use it on the same terms while working for it.
+
+2. Restrictions
+
+   You may not:
+
+   a. modify, adapt, translate, decompile or create derivative works of the Software;
+   b. copy, publish, redistribute, sublicense, sell, rent or lease the Software or any part of it, or
+      offer it to others as a service;
+   c. remove or change this licence or any copyright notice in the Software.
+
+   Installing the Software from the official npm package "figma-font-sync", directly or through its
+   install script, on computers you or your organisation use is permitted. So are the copies that the
+   package manager, the install script and the Software itself make on those computers to install and
+   run it.
+
+3. Reserved rights
+
+   All rights not expressly granted in this licence are reserved by the copyright holder. This licence
+   grants no right to use the copyright holder's names or trademarks.
+
+4. Termination
+
+   If you break these terms, your permission ends automatically. You must then stop using the Software
+   and delete your copies of it.
+
+5. Other services and fonts
+
+   The Software works with Figma and Google Drive, which have their own terms; it is not made or
+   endorsed by Figma or Google. Fonts you share or install with the Software are not part of it, and you
+   are responsible for having the right to use them.
+
+6. No warranty
+
+   The Software is provided "as is", without warranty of any kind, express or implied, including any
+   warranty of merchantability, fitness for a particular purpose or non-infringement. You use it at your
+   own risk, including risk to the files, fonts and accounts it works with.
+
+7. Limitation of liability
+
+   To the fullest extent the law allows, the copyright holder is not liable for any claim, loss or
+   damages of any kind, whether direct, indirect, incidental, special or consequential, arising from or
+   in connection with the Software or its use, even if told such damages were possible.
